@@ -7,7 +7,11 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/fatih/color"
 )
+
+const apiHost = "http://127.0.0.1:11434/api"
 
 type Request struct {
 	Model    string  `json:"model"`
@@ -34,7 +38,22 @@ type Response struct {
 	EvalDuration       int       `json:"eval_duration"`
 }
 
+type VersionResponse struct {
+	Version string `json:"version"`
+}
+
 func main() {
+	client := &http.Client{}
+
+	version, err := ollama_version(client)
+	if err != nil {
+		log.Fatal("The ollama server is down?")
+		return
+	}
+
+	color.Green("Ollama version: %s\n", version)
+	color.Blue("Waiting for the response...\n\n")
+
 	var request Request = Request{
 		Model:  "llama3",
 		Prompt: "Can you tell me a joke?",
@@ -46,14 +65,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, "http://127.0.0.1:11434/api/generate", bytes.NewBuffer(request_bytes))
+	req, err := http.NewRequest(http.MethodPost, apiHost+"/generate", bytes.NewBuffer(request_bytes))
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
 	resp, err := client.Do(req)
 
 	if err != nil {
@@ -67,4 +85,22 @@ func main() {
 	}
 
 	fmt.Println(responseBody.Response)
+}
+
+func ollama_version(client *http.Client) (string, error) {
+	req, _ := http.NewRequest(http.MethodGet, apiHost+"/version", nil)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+
+	if err != nil {
+		return "", err
+	}
+
+	var versionResponse VersionResponse
+	err = json.NewDecoder(resp.Body).Decode(&versionResponse)
+	if err != nil {
+		return "", err
+	}
+
+	return versionResponse.Version, nil
 }
