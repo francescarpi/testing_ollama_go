@@ -1,4 +1,4 @@
-module main.go
+module ollama-go
 
 go 1.22.2
 
